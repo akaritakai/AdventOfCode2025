@@ -4,4 +4,5 @@ WORKDIR "/opt/aoc"
 COPY . .
 
 RUN cargo build --release
-ENTRYPOINT ["target/release/aoc2024"]
+ENTRYPOINT ["target/release/aoc2025"]
+

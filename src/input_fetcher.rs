@@ -86,7 +86,7 @@ mod tests {
             let mock = context.server_down_mock(day);
             let input = fetcher.get_input(day).unwrap();
             assert_eq!(input, context.get_input(day));
-            mock.assert_hits(0);
+            mock.assert_calls(0);
         }
     }
 
@@ -136,7 +136,7 @@ mod tests {
             let mock = context.server_up_mock(day);
             let result = fetcher.get_input(day);
             assert!(result.is_err());
-            mock.assert_hits(0);
+            mock.assert_calls(0);
         }
     }
 
@@ -164,7 +164,7 @@ mod tests {
             });
             let result = fetcher.get_input(day);
             assert!(result.is_err());
-            mock_with_correct_token.assert_hits(0);
+            mock_with_correct_token.assert_calls(0);
             mock_with_invalid_token.assert();
         }
     }
@@ -219,7 +219,7 @@ mod tests {
             }
         }
 
-        pub fn server_up_mock(&self, day: u8) -> Mock {
+        pub fn server_up_mock(&self, day: u8) -> Mock<'_> {
             self.server.mock(|when, then| {
                 when.method(GET)
                     .path(url_path(day).as_str())
@@ -228,7 +228,7 @@ mod tests {
             })
         }
 
-        pub fn server_down_mock(&self, day: u8) -> Mock {
+        pub fn server_down_mock(&self, day: u8) -> Mock<'_> {
             self.server.mock(|when, then| {
                 when.method(GET)
                     .path(url_path(day).as_str())

@@ -1,4 +1,5 @@
 use crate::puzzle::Puzzle;
+use num::Integer;
 
 pub struct Day {
     moves: Vec<i32>,
@@ -13,7 +14,7 @@ impl Puzzle for Day {
         let mut dial = 50;
         let mut count = 0;
         for &mov in &self.moves {
-            dial = (dial + mov).rem_euclid(100);
+            dial = (dial + mov) % 100;
             if dial == 0 {
                 count += 1;
             }
@@ -26,15 +27,15 @@ impl Puzzle for Day {
     /// Time complexity: O(n)
     /// Auxiliary space complexity: O(1)
     fn solve_part_2(&self) -> String {
-        let mut dial = 50;
+        let mut dial: i32 = 50;
         let mut count = 0;
         for &mov in &self.moves {
             let prev = dial;
             dial += mov;
             if mov > 0 {
-                count += dial.div_euclid(100) - prev.div_euclid(100);
+                count += Integer::div_floor(&dial, &100) - Integer::div_floor(&prev, &100);
             } else {
-                count += (prev - 1).div_euclid(100) - (dial - 1).div_euclid(100);
+                count += Integer::div_ceil(&prev, &100) - Integer::div_ceil(&dial, &100);
             }
         }
         count.to_string()

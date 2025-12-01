@@ -1,0 +1,25 @@
+name: Build & Test
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Build main Docker image
+        run: docker build -t aoc2025 .
+      - name: Build test Docker image
+        run: docker build -t aoc2025-test -f Dockerfile.test .
+      - name: Run tests in Docker container
+        run: docker run --name aoc2025-test-run aoc2025-test
+      - name: Copy test results from Docker container
+        run: docker cp aoc2025-test-run:/opt/aoc/lcov.info .
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./lcov.info
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

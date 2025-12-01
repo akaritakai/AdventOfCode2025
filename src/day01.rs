@@ -14,7 +14,7 @@ impl Puzzle for Day {
         let mut dial = 50;
         let mut count = 0;
         for &mov in &self.moves {
-            dial = (dial + mov) % 100;
+            dial = (dial + mov).rem_euclid(100);
             if dial == 0 {
                 count += 1;
             }

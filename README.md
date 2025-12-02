@@ -2,11 +2,12 @@
 
 [![Build Status](https://github.com/akaritakai/AdventOfCode2025/actions/workflows/main.yml/badge.svg)](https://github.com/akaritakai/AdventOfCode2025/actions)
 [![Code Coverage](https://img.shields.io/codecov/c/github/akaritakai/AdventOfCode2025.svg)](https://codecov.io/gh/akaritakai/AdventOfCode2025)
-![Stars](https://img.shields.io/badge/gold%20stars%20⭐-2-yellow)
-![Days Completed](https://img.shields.io/badge/days%20completed-1-green)
+![Stars](https://img.shields.io/badge/gold%20stars%20⭐-4-yellow)
+![Days Completed](https://img.shields.io/badge/days%20completed-2-green)
 
 This repo contains my Advent of Code 2025 solutions in Rust. After providing it with your puzzle inputs (or your
-session token), running the program will print out the answers to all currently solved days of the puzzle. A Docker image is provided to ensure compatibility with machines that do not want to install dependencies.
+session token), running the program will print out the answers to all currently solved days of the puzzle.
+A Docker image is provided to ensure compatibility with machines that do not want to install dependencies.
 
 The goal of this repo is to provide fast, highly tested, and easy-to-use solutions.
 
@@ -17,6 +18,8 @@ find a correctness error: please open an issue or pull request.
 ```
 Day 01 Part 1: 1118
 Day 01 Part 2: 6289
+Day 02 Part 1: 28146997880
+Day 02 Part 2: 40028128307
 ```
 
 ## Docker Instructions

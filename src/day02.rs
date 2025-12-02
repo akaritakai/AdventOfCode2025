@@ -65,7 +65,7 @@ fn solve_range(start: u64, end: u64, strictly_two_repeats: bool) -> u64 {
     for total_len in start_len..=end_len {
         let max_seed_len = total_len / 2;
         for seed_len in 1..=max_seed_len {
-            if total_len % seed_len != 0 {
+            if !total_len.is_multiple_of(seed_len) {
                 continue;
             }
             let repeats = total_len / seed_len;

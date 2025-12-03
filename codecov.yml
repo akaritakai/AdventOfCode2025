@@ -1,0 +1,5 @@
+ignore:
+  - "benches/*"    # Exclude all benchmark tests
+  - "src/lib.rs"   # Exclude module export
+  - "src/main.rs"  # Exclude runtime wrapper
+

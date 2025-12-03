@@ -39,23 +39,19 @@ impl Puzzle for Day {
     }
 }
 
-#[inline]
 fn num_digits(n: u64) -> u32 {
     if n == 0 { 1 } else { n.ilog10() + 1 }
 }
 
 #[cached]
-#[inline]
 fn pow10(exp: u32) -> u128 {
     10u128.pow(exp)
 }
 
-#[inline]
 fn ceil_div<T: Integer>(a: T, b: T) -> T {
     Integer::div_ceil(&a, &b)
 }
 
-#[inline]
 fn floor_div<T: Integer>(a: T, b: T) -> T {
     Integer::div_floor(&a, &b)
 }
@@ -65,6 +61,12 @@ fn divisors(n: u32) -> Vec<u32> {
     n.divisors()
 }
 
+/// Möbius function μ(n) for n ≥ 0.
+///
+/// μ(0) = 0 (by convention here)
+/// μ(1) = 1
+/// μ(n) = 0 if n has a squared prime factor
+/// μ(n) = (-1)^k if n is a product of k distinct primes
 #[cached]
 fn mobius(mut n: u32) -> i32 {
     if n == 0 {
@@ -75,6 +77,7 @@ fn mobius(mut n: u32) -> i32 {
     }
     let mut mu: i32 = 1;
     let mut p: u32 = 2;
+    // Trial division up to sqrt(n)
     while p * p <= n {
         if n.is_multiple_of(p) {
             let mut count = 0;
@@ -82,17 +85,19 @@ fn mobius(mut n: u32) -> i32 {
                 n /= p;
                 count += 1;
                 if count > 1 {
+                    // Squared prime factor ⇒ μ(n) = 0
                     return 0;
                 }
             }
+            // Flip sign for each distinct prime factor.
             mu = -mu;
         }
-        p += if p == 2 { 1 } else { 2 };
+        p += if p == 2 { 1 } else { 2 }; // Check 2, then odd numbers only.
     }
+    // If there is a prime factor > sqrt(original n), flip sign once more.
     if n > 1 { -mu } else { mu }
 }
 
-#[inline]
 fn calculate_multiplier(seed_len: u32, num_repeats: u32) -> u128 {
     (0..num_repeats).fold(0u128, |acc, i| acc + pow10(i * seed_len))
 }
@@ -119,47 +124,53 @@ fn sum_doublets_in_range(start: u64, end: u64) -> u128 {
     sum
 }
 
+const MAX_DIGITS: usize = 20; // because u64::MAX has 20 decimal digits
 fn sum_nonprimitives_in_range(start: u64, end: u64) -> u128 {
     if end < 11 {
         return 0;
     }
     let mut sum: u128 = 0;
     for len in num_digits(start)..=num_digits(end) {
+        // Clamp range to numbers with exactly `len` digits.
         let low = max(pow10(len - 1), start as u128);
         let high = min(pow10(len) - 1, end as u128);
         if low > high {
             continue;
         }
-        let divs: Vec<u32> = divisors(len)
+        // Candidate primitive periods (divisors of len with at least 2 repeats).
+        let periods: Vec<u32> = divisors(len)
             .into_iter()
             .filter(|&d| d * 2 <= len)
             .collect();
-        if divs.is_empty() {
+        if periods.is_empty() {
             continue;
         }
-        let mut b = [0u128; 21];
-        for &div in &divs {
-            let multiplier = calculate_multiplier(div, len / div);
-            let low = max(pow10(div - 1), ceil_div(low, multiplier));
-            let high = min(pow10(div) - 1, floor_div(high, multiplier));
+        let mut sum_by_period = [0u128; MAX_DIGITS + 1];
+        for &period in &periods {
+            let multiplier = calculate_multiplier(period, len / period);
+            let low = max(pow10(period - 1), ceil_div(low, multiplier));
+            let high = min(pow10(period) - 1, floor_div(high, multiplier));
             if low > high {
                 continue;
             }
             let num_terms = high - low + 1;
             let sum_terms = num_terms * (low + high) / 2;
-            b[div as usize] = sum_terms * multiplier;
+            sum_by_period[period as usize] = sum_terms * multiplier;
         }
-        let mut a = [0u128; 21];
-        for &div in &divs {
+        let mut primitive_sum_by_period = [0u128; 21];
+        for &period in &periods {
             let mut acc: i128 = 0;
-            for d in divisors(div) {
-                let mu = mobius(div / d) as i128;
-                let bd = b[d as usize] as i128;
+            for d in divisors(period) {
+                let mu = mobius(period / d) as i128;
+                let bd = sum_by_period[d as usize] as i128;
                 acc += mu * bd;
             }
-            a[div as usize] = acc as u128;
+            primitive_sum_by_period[period as usize] = acc as u128;
         }
-        sum += divs.iter().map(|&div| a[div as usize]).sum::<u128>();
+        sum += periods
+            .iter()
+            .map(|&period| primitive_sum_by_period[period as usize])
+            .sum::<u128>();
     }
     sum
 }

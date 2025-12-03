@@ -1,4 +1,8 @@
 use crate::puzzle::Puzzle;
+use cached::proc_macro::cached;
+use divisors_fixed::Divisors;
+use num::Integer;
+use std::cmp::{max, min};
 use std::ops::RangeInclusive;
 
 pub struct Day {
@@ -6,110 +10,158 @@ pub struct Day {
 }
 
 impl Puzzle for Day {
-    /// Finds the sum of all numbers within the given ranges that are formed by repeating a seed
-    /// strictly twice.
+    /// Finds the sum of all doublets (numbers that are the concatenation of two identical strings)
+    /// within the given ranges.
     ///
-    /// Time complexity: O(n * m) where n is the number of ranges and m is the size of the range
+    /// Time complexity: O(n * log(m)) where n is the number of ranges, and m is the largest number
+    /// in the range.
     /// Auxiliary space complexity: O(1)
     fn solve_part_1(&self) -> String {
         self.ranges
             .iter()
-            .map(|range| solve_range(*range.start(), *range.end(), true))
-            .sum::<u64>()
+            .map(|range| sum_doublets_in_range(*range.start(), *range.end()))
+            .sum::<u128>()
             .to_string()
     }
 
-    /// Finds the sum of all numbers within the given ranges that are formed by repeating a seed
-    /// more than once.
+    /// Finds the sum of all non-primitive numbers (i.e., numbers that are the concatenation of the
+    /// same string multiple times) within the given ranges.
     ///
-    /// Time complexity: O(n * m) where n is the number of ranges and m is the size of the range
+    /// Time complexity: O(n * log^3(m)) where n is the number of ranges, and m is the largest
+    /// number in the range.
     /// Auxiliary space complexity: O(1)
     fn solve_part_2(&self) -> String {
         self.ranges
             .iter()
-            .map(|range| solve_range(*range.start(), *range.end(), false))
-            .sum::<u64>()
+            .map(|range| sum_nonprimitives_in_range(*range.start(), *range.end()))
+            .sum::<u128>()
             .to_string()
     }
 }
 
-// Pre-computed powers of 10 for O(1) access.
-const POW10: [u64; 20] = [
-    1,
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
-];
+#[inline]
+fn num_digits(n: u64) -> u32 {
+    if n == 0 { 1 } else { n.ilog10() + 1 }
+}
 
-/// Unified solver for both parts.
-fn solve_range(start: u64, end: u64, strictly_two_repeats: bool) -> u64 {
-    let mut sum: u64 = 0;
-    let start_len = start.ilog10() + 1;
-    let end_len = end.ilog10() + 1;
-    for total_len in start_len..=end_len {
-        let max_seed_len = total_len / 2;
-        for seed_len in 1..=max_seed_len {
-            if !total_len.is_multiple_of(seed_len) {
-                continue;
-            }
-            let repeats = total_len / seed_len;
-            if strictly_two_repeats && repeats != 2 {
-                continue;
-            }
-            let multiplier = calculate_multiplier(seed_len, repeats);
-            let start_seed = start
-                .div_ceil(multiplier)
-                .max(POW10[(seed_len - 1) as usize]);
-            let end_seed = (end / multiplier).min(POW10[seed_len as usize] - 1);
-            for seed in start_seed..=end_seed {
-                if strictly_two_repeats || !is_periodic(seed) {
-                    sum += seed * multiplier;
+#[cached]
+#[inline]
+fn pow10(exp: u32) -> u128 {
+    10u128.pow(exp)
+}
+
+#[inline]
+fn ceil_div<T: Integer>(a: T, b: T) -> T {
+    Integer::div_ceil(&a, &b)
+}
+
+#[inline]
+fn floor_div<T: Integer>(a: T, b: T) -> T {
+    Integer::div_floor(&a, &b)
+}
+
+#[cached]
+fn divisors(n: u32) -> Vec<u32> {
+    n.divisors()
+}
+
+#[cached]
+fn mobius(mut n: u32) -> i32 {
+    if n == 0 {
+        return 0;
+    }
+    if n == 1 {
+        return 1;
+    }
+    let mut mu: i32 = 1;
+    let mut p: u32 = 2;
+    while p * p <= n {
+        if n.is_multiple_of(p) {
+            let mut count = 0;
+            while n.is_multiple_of(p) {
+                n /= p;
+                count += 1;
+                if count > 1 {
+                    return 0;
                 }
             }
+            mu = -mu;
         }
+        p += if p == 2 { 1 } else { 2 };
+    }
+    if n > 1 { -mu } else { mu }
+}
+
+#[inline]
+fn calculate_multiplier(seed_len: u32, num_repeats: u32) -> u128 {
+    (0..num_repeats).fold(0u128, |acc, i| acc + pow10(i * seed_len))
+}
+
+fn sum_doublets_in_range(start: u64, end: u64) -> u128 {
+    if end < 11 {
+        return 0;
+    }
+    let start = if start < 11 { 11 } else { start };
+    let min_len = ceil_div(num_digits(start), 2);
+    let max_len = floor_div(num_digits(end), 2);
+    let mut sum: u128 = 0;
+    for len in min_len..=max_len {
+        let multiplier = calculate_multiplier(len, 2);
+        let low = max(pow10(len - 1), ceil_div(start as u128, multiplier));
+        let high = min(pow10(len) - 1, floor_div(end as u128, multiplier));
+        if low > high {
+            continue;
+        }
+        let num_terms = high - low + 1;
+        let sum_terms = num_terms * (low + high) / 2;
+        sum += sum_terms * multiplier;
     }
     sum
 }
 
-/// Helper to calculate the multiplier to turn a seed into a repeated number.
-fn calculate_multiplier(seed_len: u32, repeats: u32) -> u64 {
-    (0..repeats).fold(0, |acc, i| acc + POW10[(i * seed_len) as usize])
-}
-
-/// Returns true if `n` is formed by repeating a shorter substring.
-fn is_periodic(n: u64) -> bool {
-    if n < 10 {
-        return false;
+fn sum_nonprimitives_in_range(start: u64, end: u64) -> u128 {
+    if end < 11 {
+        return 0;
     }
-    let digits = n.ilog10() + 1;
-    for sub_len in 1..=(digits / 2) {
-        if digits.is_multiple_of(sub_len) {
-            let shift = digits - sub_len;
-            let seed = n / POW10[shift as usize];
-            let repeats = digits / sub_len;
-            let multiplier = calculate_multiplier(sub_len, repeats);
-            if seed * multiplier == n {
-                return true;
-            }
+    let mut sum: u128 = 0;
+    for len in num_digits(start)..=num_digits(end) {
+        let low = max(pow10(len - 1), start as u128);
+        let high = min(pow10(len) - 1, end as u128);
+        if low > high {
+            continue;
         }
+        let divs: Vec<u32> = divisors(len)
+            .into_iter()
+            .filter(|&d| d * 2 <= len)
+            .collect();
+        if divs.is_empty() {
+            continue;
+        }
+        let mut b = [0u128; 21];
+        for &div in &divs {
+            let multiplier = calculate_multiplier(div, len / div);
+            let low = max(pow10(div - 1), ceil_div(low, multiplier));
+            let high = min(pow10(div) - 1, floor_div(high, multiplier));
+            if low > high {
+                continue;
+            }
+            let num_terms = high - low + 1;
+            let sum_terms = num_terms * (low + high) / 2;
+            b[div as usize] = sum_terms * multiplier;
+        }
+        let mut a = [0u128; 21];
+        for &div in &divs {
+            let mut acc: i128 = 0;
+            for d in divisors(div) {
+                let mu = mobius(div / d) as i128;
+                let bd = b[d as usize] as i128;
+                acc += mu * bd;
+            }
+            a[div as usize] = acc as u128;
+        }
+        sum += divs.iter().map(|&div| a[div as usize]).sum::<u128>();
     }
-    false
+    sum
 }
 
 impl Day {

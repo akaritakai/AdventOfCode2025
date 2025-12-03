@@ -24,6 +24,20 @@ Day 03 Part 1: 17034
 Day 03 Part 2: 168798209663590
 ```
 
+### Performance
+
+| Solution       | Execution Time |
+|----------------|----------------|
+| Day 01 Part 01 | 11.625 µs      |
+| Day 01 Part 02 | 8.8480 µs      |
+| Day 02 Part 01 | 667.49 ns      |
+| Day 02 Part 02 | 5.3108 µs      |
+| Day 03 Part 01 | 25.127 µs      |
+| Day 03 Part 02 | 24.426 µs      |
+| **Total**      | 76.004 µs      |
+
+Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor](https://www.cpubenchmark.net/cpu.php?id=5031).
+
 ## Docker Instructions
 
 1. Follow the instructions below for providing your puzzle input.

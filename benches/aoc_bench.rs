@@ -1,6 +1,7 @@
 use aoc2025::{day01, day02, day03};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use std::path::PathBuf;
+use std::time::Duration;
 
 fn day01_bench(c: &mut Criterion) {
     let input = std::fs::read_to_string(PathBuf::from("resources/tests/01")).unwrap();
@@ -38,5 +39,9 @@ fn day03_bench(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, day01_bench, day02_bench, day03_bench);
+criterion_group! {
+    name = benches;
+    config = Criterion::default().sample_size(300).measurement_time(Duration::from_secs(15)).nresamples(200_000);
+    targets = day01_bench, day02_bench, day03_bench
+}
 criterion_main!(benches);

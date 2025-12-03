@@ -1,10 +1,6 @@
-use crate::input_fetcher::InputFetcher;
-use crate::puzzle::Puzzle;
-
-mod day01;
-mod day02;
-mod input_fetcher;
-mod puzzle;
+use aoc2025::input_fetcher::InputFetcher;
+use aoc2025::puzzle::Puzzle;
+use aoc2025::{day01, day02};
 
 fn main() {
     let fetcher = InputFetcher::create();

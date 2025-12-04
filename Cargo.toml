@@ -7,6 +7,7 @@ edition = "2024"
 [dependencies]
 cached = "0.56.0"
 divisors_fixed = "0.4.0"
+itertools = "0.14.0"
 num = "0.4.3"
 reqwest = {version = "0.12.24", features = ["blocking"]}
 
@@ -14,7 +15,7 @@ reqwest = {version = "0.12.24", features = ["blocking"]}
 httpmock = "0.8.2"
 rand = "0.9.2"
 tempfile = "3.23.0"
-criterion = "0.5"
+criterion = "0.8.0"
 
 [[bench]]
 name = "aoc_bench"

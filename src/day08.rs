@@ -182,15 +182,15 @@ fn short_connections_product(points: &[Point], count: usize) -> usize {
                     to: j,
                     dist2: d,
                 });
-            } else if let Some(top) = edges.peek() {
-                if d < top.dist2 {
-                    edges.pop();
-                    edges.push(Edge {
-                        from: i,
-                        to: j,
-                        dist2: d,
-                    });
-                }
+            } else if let Some(top) = edges.peek()
+                && d < top.dist2
+            {
+                edges.pop();
+                edges.push(Edge {
+                    from: i,
+                    to: j,
+                    dist2: d,
+                });
             }
         }
     }

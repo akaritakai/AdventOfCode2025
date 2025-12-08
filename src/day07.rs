@@ -1,5 +1,4 @@
 use crate::puzzle::Puzzle;
-use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
 pub struct Day {
@@ -27,7 +26,7 @@ impl Puzzle for Day {
             next.clear();
             for &(r, c) in &beams {
                 let nr = r + 1;
-                if self.splitters.iter().contains(&(nr, c)) {
+                if self.splitters.contains(&(nr, c)) {
                     num_splits += 1;
                     unique_push(&mut next, (nr, c - 1));
                     unique_push(&mut next, (nr, c + 1));

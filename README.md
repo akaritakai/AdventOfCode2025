@@ -2,8 +2,8 @@
 
 [![Build Status](https://github.com/akaritakai/AdventOfCode2025/actions/workflows/main.yml/badge.svg)](https://github.com/akaritakai/AdventOfCode2025/actions)
 [![Code Coverage](https://img.shields.io/codecov/c/github/akaritakai/AdventOfCode2025.svg)](https://codecov.io/gh/akaritakai/AdventOfCode2025)
-![Stars](https://img.shields.io/badge/gold%20stars%20⭐-8-yellow)
-![Days Completed](https://img.shields.io/badge/days%20completed-4-green)
+![Stars](https://img.shields.io/badge/gold%20stars%20⭐-14-yellow)
+![Days Completed](https://img.shields.io/badge/days%20completed-7-green)
 
 This repo contains my Advent of Code 2025 solutions in Rust. After providing it with your puzzle inputs (or your
 session token), running the program will print out the answers to all currently solved days of the puzzle.
@@ -24,6 +24,12 @@ Day 03 Part 1: 17034
 Day 03 Part 2: 168798209663590
 Day 04 Part 1: 1424
 Day 04 Part 2: 8727
+Day 05 Part 1: 509
+Day 05 Part 2: 336790092076620
+Day 06 Part 1: 5227286044585
+Day 06 Part 2: 10227753257799
+Day 07 Part 1: 1711
+Day 07 Part 2: 36706966158365
 ```
 
 ### Performance
@@ -38,7 +44,13 @@ Day 04 Part 2: 8727
 | Day 03 Part 02 | 23.779 µs      |
 | Day 04 Part 01 | 51.885 µs      |
 | Day 04 Part 02 | 430.92 µs      |
-| **Total**      | 556.07 µs      |
+| Day 05 Part 01 | 17.620 µs      |
+| Day 05 Part 02 | 7.6199 µs      |
+| Day 06 Part 01 | 1.4939 µs      |
+| Day 06 Part 02 | 5.6753 µs      |
+| Day 07 Part 01 | 4.6171 ms      |
+| Day 07 Part 02 | 189.55 µs      |
+| **Total**      | 5.3951 ms      |
 
 Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor](https://www.cpubenchmark.net/cpu.php?id=5031).
 

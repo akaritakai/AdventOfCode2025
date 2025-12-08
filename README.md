@@ -34,23 +34,16 @@ Day 07 Part 2: 36706966158365
 
 ### Performance
 
-| Solution       | Execution Time |
-|----------------|----------------|
-| Day 01 Part 01 | 11.597 µs      |
-| Day 01 Part 02 | 8.8473 µs      |
-| Day 02 Part 01 | 667.49 ns      |
-| Day 02 Part 02 | 5.0826 µs      |
-| Day 03 Part 01 | 23.290 µs      |
-| Day 03 Part 02 | 23.779 µs      |
-| Day 04 Part 01 | 51.885 µs      |
-| Day 04 Part 02 | 430.92 µs      |
-| Day 05 Part 01 | 17.620 µs      |
-| Day 05 Part 02 | 7.6199 µs      |
-| Day 06 Part 01 | 1.4939 µs      |
-| Day 06 Part 02 | 5.6753 µs      |
-| Day 07 Part 01 | 4.6171 ms      |
-| Day 07 Part 02 | 189.55 µs      |
-| **Total**      | 5.3951 ms      |
+| Puzzle    | Part 1    | Part 2    | Total     |
+|-----------|-----------|-----------|-----------|
+| Day 01    | 11.597 µs | 8.8473 µs | 20.444 µs |
+| Day 02    | 667.49 ns | 5.0826 µs | 5.7501 µs |
+| Day 03    | 23.290 µs | 23.779 µs | 47.069 µs |
+| Day 04    | 51.885 µs | 430.92 µs | 482.81 µs |
+| Day 05    | 17.620 µs | 7.6199 µs | 25.239 µs |
+| Day 06    | 1.4939 µs | 5.6753 µs | 7.1692 µs |
+| Day 07    | 4.6171 ms | 189.55 µs | 4.8067 ms |
+| **Total** |           |           | 5.3951 ms |
 
 Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor](https://www.cpubenchmark.net/cpu.php?id=5031).
 

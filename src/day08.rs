@@ -1,4 +1,5 @@
 use crate::puzzle::Puzzle;
+use std::collections::BinaryHeap;
 
 pub struct Day {
     points: Vec<Point>,
@@ -8,7 +9,7 @@ impl Puzzle for Day {
     /// Connect the 1000 closest pairs, then multiply sizes of the 3 largest circuits.
     ///
     /// Time complexity: O(N^2)
-    /// Auxiliary space complexity: O(N^2)
+    /// Auxiliary space complexity: O(N)
     fn solve_part_1(&self) -> String {
         short_connections_product(&self.points, 1000).to_string()
     }
@@ -16,26 +17,44 @@ impl Puzzle for Day {
     /// Keep connecting closest pairs until all junction boxes are in one circuit.
     /// Return product of X coordinates of the last edge that merges the final two components.
     ///
-    /// Time complexity: O(N^2 log N)
-    /// Auxiliary space complexity: O(N^2)
+    /// Time complexity: O(N^2)
+    /// Auxiliary space complexity: O(N)
     fn solve_part_2(&self) -> String {
         let n = self.points.len();
-        let mut edges = all_edges(&self.points);
-        edges.sort_unstable_by_key(|e| e.dist2);
-        let mut dsu = Dsu::new(n);
-        let mut last_merged: Option<Edge> = None;
-        for e in edges {
-            if dsu.union(e.from, e.to) {
-                last_merged = Some(e);
-                if dsu.components == 1 {
-                    break;
+        let mut in_mst = vec![false; n];
+        let mut best = vec![u64::MAX; n];
+        let mut parent: Vec<Option<usize>> = vec![None; n];
+        let mut max_edge: Option<(u64, usize)> = None;
+        best[0] = 0;
+        for _ in 0..n {
+            let v = (0..n)
+                .filter(|&i| !in_mst[i])
+                .min_by_key(|&i| best[i])
+                .unwrap();
+            let v_best = best[v];
+            in_mst[v] = true;
+            if parent[v].is_some() {
+                match max_edge {
+                    None => max_edge = Some((v_best, v)),
+                    Some((d, _)) if v_best > d => max_edge = Some((v_best, v)),
+                    _ => {}
+                }
+            }
+            for u in 0..n {
+                if !in_mst[u] {
+                    let d = self.points[v].dist2(&self.points[u]);
+                    if d < best[u] {
+                        best[u] = d;
+                        parent[u] = Some(v);
+                    }
                 }
             }
         }
-        let e = last_merged.unwrap();
-        let p1_x = self.points[e.from].x;
-        let p2_x = self.points[e.to].x;
-        (p1_x * p2_x).to_string()
+        let (_, v) = max_edge.unwrap();
+        let p = parent[v].unwrap();
+        let a = self.points[v].x as i128;
+        let b = self.points[p].x as i128;
+        (a * b).to_string()
     }
 }
 
@@ -72,26 +91,25 @@ impl Point {
     }
 }
 
+#[derive(Eq, PartialEq)]
 struct Edge {
     from: usize,
     to: usize,
     dist2: u64,
 }
 
-fn all_edges(points: &[Point]) -> Vec<Edge> {
-    let n = points.len();
-    let mut edges = Vec::with_capacity(n * (n - 1) / 2);
-    for i in 0..n {
-        for j in (i + 1)..n {
-            let dist2 = points[i].dist2(&points[j]);
-            edges.push(Edge {
-                from: i,
-                to: j,
-                dist2,
-            });
-        }
+impl Ord for Edge {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.dist2
+            .cmp(&other.dist2)
+            .then_with(|| self.from.cmp(&other.from))
+            .then_with(|| self.to.cmp(&other.to))
     }
-    edges
+}
+impl PartialOrd for Edge {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 struct Dsu {
@@ -154,16 +172,35 @@ impl Dsu {
 
 fn short_connections_product(points: &[Point], count: usize) -> usize {
     let n = points.len();
-    let mut edges = all_edges(points);
-    let k = count.min(edges.len());
-    edges.select_nth_unstable_by_key(k - 1, |e| e.dist2);
-    edges.truncate(k);
+    let mut edges: BinaryHeap<Edge> = BinaryHeap::with_capacity(count + 1);
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let d = points[i].dist2(&points[j]);
+            if edges.len() < count {
+                edges.push(Edge {
+                    from: i,
+                    to: j,
+                    dist2: d,
+                });
+            } else if let Some(top) = edges.peek() {
+                if d < top.dist2 {
+                    edges.pop();
+                    edges.push(Edge {
+                        from: i,
+                        to: j,
+                        dist2: d,
+                    });
+                }
+            }
+        }
+    }
     let mut dsu = Dsu::new(n);
     for e in edges {
         dsu.union(e.from, e.to);
     }
     let mut sizes = dsu.component_sizes();
-    sizes.sort_unstable_by(|a, b| b.cmp(a));
+    sizes.select_nth_unstable_by_key(2, |&x| std::cmp::Reverse(x));
+    sizes.truncate(3);
     sizes.into_iter().take(3).product()
 }
 

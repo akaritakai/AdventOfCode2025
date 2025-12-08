@@ -20,19 +20,19 @@ impl Puzzle for Day {
     /// Auxiliary space complexity: O(N)
     fn solve_part_1(&self) -> String {
         let mut num_splits: u64 = 0;
-        let mut beams: HashSet<Pos> = HashSet::new();
-        let mut next: HashSet<Pos> = HashSet::new();
-        beams.insert(self.start);
+        let mut beams: Vec<Pos> = Vec::new();
+        let mut next: Vec<Pos> = Vec::new();
+        beams.push(self.start);
         for _ in self.start.0..self.last_splitter_row() {
             next.clear();
             for &(r, c) in &beams {
                 let nr = r + 1;
                 if self.splitters.iter().contains(&(nr, c)) {
                     num_splits += 1;
-                    next.insert((nr, c - 1));
-                    next.insert((nr, c + 1));
+                    unique_push(&mut next, (nr, c - 1));
+                    unique_push(&mut next, (nr, c + 1));
                 } else {
-                    next.insert((nr, c));
+                    unique_push(&mut next, (nr, c));
                 }
             }
             std::mem::swap(&mut beams, &mut next);
@@ -71,6 +71,12 @@ impl Puzzle for Day {
 }
 
 type Pos = (usize, usize);
+
+fn unique_push(vec: &mut Vec<Pos>, pos: Pos) {
+    if vec.last() != Some(&pos) {
+        vec.push(pos);
+    }
+}
 
 impl Day {
     pub fn create(input: &str) -> Box<dyn Puzzle> {

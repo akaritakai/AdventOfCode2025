@@ -31,9 +31,10 @@ make_day_bench!(day08_bench, day08, "08");
 criterion_group! {
     name = benches;
     config = Criterion::default()
-                 .sample_size(300)
-                 .measurement_time(Duration::from_secs(30))
-                 .nresamples(200_000);
+                 .sample_size(500)
+                 .measurement_time(Duration::from_secs(10))
+                 .nresamples(100_000)
+                 .configure_from_args();
     targets = day01_bench, day02_bench, day03_bench, day04_bench, day05_bench, day06_bench,
               day07_bench, day08_bench
 }

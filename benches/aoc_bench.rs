@@ -1,4 +1,4 @@
-use aoc2025::{day01, day02, day03, day04, day05, day06, day07, day08};
+use aoc2025::{day01, day02, day03, day04, day05, day06, day07, day08, day09};
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 use std::time::Duration;
@@ -27,6 +27,7 @@ make_day_bench!(day05_bench, day05, "05");
 make_day_bench!(day06_bench, day06, "06");
 make_day_bench!(day07_bench, day07, "07");
 make_day_bench!(day08_bench, day08, "08");
+make_day_bench!(day09_bench, day09, "09");
 
 criterion_group! {
     name = benches;
@@ -36,6 +37,6 @@ criterion_group! {
                  .nresamples(100_000)
                  .configure_from_args();
     targets = day01_bench, day02_bench, day03_bench, day04_bench, day05_bench, day06_bench,
-              day07_bench, day08_bench
+              day07_bench, day08_bench, day09_bench
 }
 criterion_main!(benches);

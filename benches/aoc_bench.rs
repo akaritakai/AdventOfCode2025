@@ -1,10 +1,10 @@
-use aoc2025::{day01, day02, day03, day04, day05, day06, day07, day08, day09};
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 use std::time::Duration;
 
 macro_rules! make_day_bench {
     ($fn_name:ident, $mod:ident, $day:literal) => {
+        use aoc2025::$mod;
         fn $fn_name(c: &mut Criterion) {
             let input = std::fs::read_to_string(concat!("resources/tests/", $day)).unwrap();
             let puzzle = $mod::Day::create(&input);

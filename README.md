@@ -51,8 +51,8 @@ Day 10 Part 2: 19810
 | Day 07    | 66.768 µs | 202.47 µs | 269.20 µs |
 | Day 08    | 712.33 µs | 1.6045 ms | 2.3168 ms |
 | Day 09    | 130.53 µs | 1.5932 ms | 1.7237 ms |
-| Day 10    | WIP       | WIP       | WIP       |
-| **Total** |           |           | 4.9746 ms |
+| Day 10    | 76.822 µs | 181.47 ms | 181.55 ms |
+| **Total** |           |           | 186.52 ms |
 
 Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor](https://www.cpubenchmark.net/cpu.php?id=5031).
 

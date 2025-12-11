@@ -7,10 +7,15 @@ pub struct Day {
 }
 
 impl Puzzle for Day {
-    /// TODO
+    /// For each machine, compute the minimum number of button presses needed to reach the target
+    /// lighting pattern (treating each button as a bitmask toggle), then sum these minima across
+    /// all machines.
     ///
-    /// Time complexity: TODO
-    /// Auxiliary space complexity: TODO
+    /// This uses a BFS over the state space of light configurations.
+    ///
+    /// Time complexity: O(N * B * 2^L) where N is the number of machines, B is the number of
+    /// buttons per machine, and L is the number of lights per machine.
+    /// Auxiliary space complexity: O(2^L)
     fn solve_part_1(&self) -> String {
         self.machines
             .iter()
@@ -19,10 +24,16 @@ impl Puzzle for Day {
             .to_string()
     }
 
-    /// TODO
+    /// For each machine, compute the minimum total number of button presses
+    /// needed to satisfy the per-light joltage requirements, then sum these
+    /// minima across all machines.
     ///
-    /// Time complexity: TODO
-    /// Auxiliary space complexity: TODO
+    /// This formulates a nonnegative-integer optimization problem and solves
+    /// it using Z3 Optimize.
+    ///
+    /// Time complexity: Constraint construction is O(N * B * L^2) where N is the number of
+    /// machines, B is the number of buttons per machine, and L is the number of lights per machine.
+    /// Auxiliary space complexity: O(B * L)
     fn solve_part_2(&self) -> String {
         self.machines
             .iter()
@@ -33,15 +44,10 @@ impl Puzzle for Day {
 }
 
 struct Machine {
-    /// Number of lights.
     num_lights: usize,
-    /// Lighting diagram goal
     lighting_goal: u16,
-    /// Button masks
     button_masks: Vec<u16>,
-    /// Button wires
     button_wires: Vec<Vec<usize>>,
-    /// Joltage goal
     joltage_goal: Vec<usize>,
 }
 

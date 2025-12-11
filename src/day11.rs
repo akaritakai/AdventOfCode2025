@@ -6,18 +6,21 @@ pub struct Day {
 }
 
 impl Puzzle for Day {
-    /// TODO
+    /// Count the number of distinct directed paths from "you" to "out" in a DAG.
     ///
-    /// Time complexity: TODO
-    /// Auxiliary space complexity: TODO
+    /// Time complexity: O(V + E) where V is the number of devices and E is the number of
+    /// connections.
+    /// Auxiliary space complexity: O(V)
     fn solve_part_1(&self) -> String {
         self.count_paths("you", "out").to_string()
     }
 
-    /// TODO
+    /// Count the number of paths from "svr" to "out" that pass through both "dac" and "fft" (in any
+    /// order).
     ///
-    /// Time complexity: TODO
-    /// Auxiliary space complexity: TODO
+    /// Time complexity: O(V + E) where V is the number of devices and E is the number of
+    /// connections.
+    /// Auxiliary space complexity: O(V)
     fn solve_part_2(&self) -> String {
         let svr_to_dac = self.count_paths("svr", "dac");
         let dac_to_fft = self.count_paths("dac", "fft");

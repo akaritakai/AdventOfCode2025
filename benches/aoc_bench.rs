@@ -29,6 +29,7 @@ make_day_bench!(day07_bench, day07, "07");
 make_day_bench!(day08_bench, day08, "08");
 make_day_bench!(day09_bench, day09, "09");
 make_day_bench!(day10_bench, day10, "10");
+make_day_bench!(day11_bench, day11, "11");
 
 criterion_group! {
     name = benches;
@@ -38,6 +39,6 @@ criterion_group! {
                  .nresamples(100_000)
                  .configure_from_args();
     targets = day01_bench, day02_bench, day03_bench, day04_bench, day05_bench, day06_bench,
-              day07_bench, day08_bench, day09_bench, day10_bench
+              day07_bench, day08_bench, day09_bench, day10_bench, day11_bench
 }
 criterion_main!(benches);

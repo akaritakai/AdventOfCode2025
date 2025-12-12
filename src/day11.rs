@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use crate::puzzle::Puzzle;
+use std::collections::{HashMap, HashSet};
 
 pub struct Day {
     graph: Graph,
@@ -38,7 +38,9 @@ type Graph = HashMap<String, HashSet<String>>;
 
 impl Day {
     pub fn create(input: &str) -> Box<dyn Puzzle> {
-        let graph: Graph = input.trim().lines()
+        let graph: Graph = input
+            .trim()
+            .lines()
             .map(|line| {
                 let (from, to_part) = line.trim().split_once(": ").unwrap();
                 let to = to_part.split_whitespace().map(|t| t.to_string()).collect();

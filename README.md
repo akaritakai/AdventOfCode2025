@@ -64,9 +64,10 @@ Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor]
 
 ## Docker Instructions
 
-1. Follow the instructions below for providing your puzzle input.
-2. Run `docker build -t aoc2025 .`
-3. Run `docker run --rm --name aoc2025-run aoc2025`
+Follow the instructions below for providing your puzzle input:
+
+1. Run `docker build -t aoc2025 .` to compile the solver.
+2. Run `docker run --rm aoc2025` to execute it.
 
 ## Providing Your Puzzle Input
 

@@ -57,8 +57,8 @@ Day 12 Part 2: Day 12 has no part 2
 | Day 09    | 130.53 µs | 1.5932 ms | 1.7237 ms |
 | Day 10    | 76.822 µs | 181.47 ms | 181.55 ms |
 | Day 11    | 7.5150 µs | 194.48 µs | 202.00 µs |
-| Day 12    | WIP       | WIP       | WIP       |
-| **Total** |           |           | 186.72 ms |
+| Day 12    | 745.89 ms |           | 745.89 ms |
+| **Total** |           |           | 932.61 ms |
 
 Benchmarks were measured using `cargo bench` on an [AMD Ryzen 9 7950X processor](https://www.cpubenchmark.net/cpu.php?id=5031).
 

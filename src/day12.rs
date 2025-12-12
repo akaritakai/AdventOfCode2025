@@ -1,5 +1,9 @@
-use std::collections::HashSet;
 use crate::puzzle::Puzzle;
+
+use ahash::{AHashMap, AHashSet};
+use rayon::prelude::*;
+use smallvec::SmallVec;
+use std::sync::Arc;
 
 pub struct Day {
     shapes: Vec<Shape>,
@@ -9,10 +13,37 @@ pub struct Day {
 impl Puzzle for Day {
     /// Count how many regions can fit all required presents (packing with rotations/flips).
     ///
-    /// Time complexity: TODO
-    /// Auxiliary space complexity: TODO
+    /// Time complexity: O(N * e^M) where N is the number of regions and M is the number of distinct
+    /// shapes.
+    /// Auxiliary space complexity: O(2^B) where B is the area of the region.
     fn solve_part_1(&self) -> String {
-        self.regions.iter().filter(|r| region_can_fit(r, &self.shapes)).count().to_string()
+        let mut used_shape = vec![false; self.shapes.len()];
+        let mut sizes: AHashSet<(usize, usize)> = AHashSet::new();
+        for r in &self.regions {
+            sizes.insert((r.w, r.h));
+            for (i, &c) in r.counts.iter().enumerate() {
+                if c != 0 {
+                    used_shape[i] = true;
+                }
+            }
+        }
+        type PLKey = (usize, usize, usize);
+        let mut placement_map: AHashMap<PLKey, Arc<PlacementList>> = AHashMap::new();
+        for (w, h) in sizes.into_iter() {
+            for (i, shape) in self.shapes.iter().enumerate() {
+                if !used_shape[i] {
+                    continue;
+                }
+                placement_map.insert((w, h, i), Arc::new(PlacementList::generate(w, h, shape)));
+            }
+        }
+        let shapes = &self.shapes;
+        let pm = &placement_map;
+        self.regions
+            .par_iter()
+            .filter(|r| region_can_fit(r, shapes, pm))
+            .count()
+            .to_string()
     }
 
     fn solve_part_2(&self) -> String {
@@ -35,7 +66,6 @@ impl Day {
     }
 }
 
-
 #[derive(Clone)]
 struct Region {
     w: usize,
@@ -57,56 +87,57 @@ struct Variant {
 }
 
 #[derive(Clone)]
+struct Placement {
+    chunks: SmallVec<[(u16, u64); 4]>,
+}
+
+#[derive(Clone)]
 struct PlacementList {
-    words: usize,
-    masks: Vec<u64>,
+    placements: Vec<Placement>,
 }
 
 impl PlacementList {
-    fn num_masks(&self) -> usize {
-        if self.words == 0 { 0 } else { self.masks.len() / self.words }
-    }
-
-    fn mask(&self, idx: usize) -> &[u64] {
-        let start = idx * self.words;
-        &self.masks[start..start + self.words]
-    }
-
-    fn iter_masks(&self) -> impl Iterator<Item = &[u64]> {
-        (0..self.num_masks()).map(move |i| self.mask(i))
-    }
-
     fn generate(region_w: usize, region_h: usize, shape: &Shape) -> Self {
-        let cells = region_w * region_h;
-        let words = (cells + 63) / 64;
-        let mut masks: Vec<u64> = Vec::new();
+        let mut placements = Vec::new();
         for v in &shape.variants {
             if v.w > region_w || v.h > region_h {
                 continue;
             }
             let max_x0 = region_w - v.w;
             let max_y0 = region_h - v.h;
-
             for y0 in 0..=max_y0 {
                 for x0 in 0..=max_x0 {
-                    let mut mask = vec![0u64; words];
+                    let mut chunks: SmallVec<[(u16, u64); 4]> = SmallVec::new();
                     for &(dx, dy) in &v.cells {
                         let x = x0 + dx as usize;
                         let y = y0 + dy as usize;
                         let idx = y * region_w + x;
-                        let w = idx / 64;
-                        let b = idx % 64;
-                        mask[w] |= 1u64 << b;
+                        let wi = (idx >> 6) as u16;
+                        let bit = 1u64 << (idx & 63);
+                        if let Some((_, m)) = chunks.iter_mut().find(|(w, _)| *w == wi) {
+                            *m |= bit;
+                        } else {
+                            chunks.push((wi, bit));
+                        }
                     }
-                    masks.extend_from_slice(&mask);
+                    placements.push(Placement { chunks });
                 }
             }
         }
-        Self { words, masks }
+        Self { placements }
+    }
+
+    #[inline]
+    fn iter(&self) -> impl Iterator<Item = &Placement> {
+        self.placements.iter()
     }
 }
 
-fn region_can_fit(region: &Region, shapes: &[Shape]) -> bool {
+fn region_can_fit(
+    region: &Region,
+    shapes: &[Shape],
+    placement_map: &AHashMap<(usize, usize, usize), Arc<PlacementList>>,
+) -> bool {
     if region.counts.len() != shapes.len() {
         return false;
     }
@@ -120,37 +151,69 @@ fn region_can_fit(region: &Region, shapes: &[Shape]) -> bool {
     if needed_cells > board_cells {
         return false;
     }
-    let mut placements: Vec<Option<PlacementList>> = vec![None; shapes.len()];
+    let mut placements: Vec<Option<Arc<PlacementList>>> = vec![None; shapes.len()];
+    let mut types: Vec<usize> = Vec::new();
     for (i, &c) in region.counts.iter().enumerate() {
         if c == 0 {
             continue;
         }
-        let plist = PlacementList::generate(region.w, region.h, &shapes[i]);
-        if plist.num_masks() == 0 {
+        let plist = placement_map.get(&(region.w, region.h, i)).unwrap();
+        if plist.placements.is_empty() {
             return false;
         }
-        placements[i] = Some(plist);
+        placements[i] = Some(plist.clone());
+        types.push(i);
     }
-    let words = (board_cells + 63) / 64;
+    let words = board_cells.div_ceil(64);
     let mut occ = vec![0u64; words];
     let mut remaining = region.counts.clone();
-    dfs_pack(&mut occ, &mut remaining, &placements)
+    let pieces_left: usize = remaining.iter().map(|&c| c as usize).sum();
+    let mut memo: AHashSet<StateKey> = AHashSet::new();
+    dfs_pack(
+        &mut occ,
+        &mut remaining,
+        &placements,
+        &types,
+        pieces_left,
+        &mut memo,
+    )
 }
 
-fn dfs_pack(occ: &mut [u64], remaining: &mut [u8], placements: &[Option<PlacementList>]) -> bool {
-    if remaining.iter().all(|&c| c == 0) {
+#[derive(Hash, Eq, PartialEq)]
+struct StateKey {
+    occ: SmallVec<[u64; 16]>,
+    remaining: SmallVec<[u8; 32]>,
+}
+
+fn dfs_pack(
+    occ: &mut [u64],
+    remaining: &mut [u8],
+    placements: &[Option<Arc<PlacementList>>],
+    types: &[usize],
+    pieces_left: usize,
+    memo: &mut AHashSet<StateKey>,
+) -> bool {
+    if pieces_left == 0 {
         return true;
+    }
+    let key = StateKey {
+        occ: SmallVec::from_slice(occ),
+        remaining: SmallVec::from_slice(remaining),
+    };
+    if memo.contains(&key) {
+        return false;
     }
     let mut best_t: Option<usize> = None;
     let mut best_fit_count: usize = usize::MAX;
-    for (t, &cnt) in remaining.iter().enumerate() {
+    for &t in types {
+        let cnt = remaining[t];
         if cnt == 0 {
             continue;
         }
         let plist = placements[t].as_ref().unwrap();
         let mut fit = 0usize;
-        for mask in plist.iter_masks() {
-            if fits(occ, mask) {
+        for p in plist.iter() {
+            if fits(occ, p) {
                 fit += 1;
                 if fit >= best_fit_count {
                     break;
@@ -158,6 +221,7 @@ fn dfs_pack(occ: &mut [u64], remaining: &mut [u8], placements: &[Option<Placemen
             }
         }
         if fit == 0 {
+            memo.insert(key);
             return false;
         }
         if fit < best_fit_count {
@@ -170,39 +234,43 @@ fn dfs_pack(occ: &mut [u64], remaining: &mut [u8], placements: &[Option<Placemen
     }
     let t = best_t.unwrap();
     let plist = placements[t].as_ref().unwrap();
-    for mask in plist.iter_masks() {
-        if !fits(occ, mask) {
+    for p in plist.iter() {
+        if !fits(occ, p) {
             continue;
         }
-        apply(occ, mask);
+        apply(occ, p);
         remaining[t] -= 1;
-        if dfs_pack(occ, remaining, placements) {
+        if dfs_pack(occ, remaining, placements, types, pieces_left - 1, memo) {
             return true;
         }
         remaining[t] += 1;
-        unapply(occ, mask);
+        unapply(occ, p);
     }
+    memo.insert(key);
     false
 }
 
-fn fits(occ: &[u64], mask: &[u64]) -> bool {
-    for i in 0..occ.len() {
-        if (occ[i] & mask[i]) != 0 {
+#[inline(always)]
+fn fits(occ: &[u64], p: &Placement) -> bool {
+    for &(wi, m) in p.chunks.iter() {
+        if (occ[wi as usize] & m) != 0 {
             return false;
         }
     }
     true
 }
 
-fn apply(occ: &mut [u64], mask: &[u64]) {
-    for i in 0..occ.len() {
-        occ[i] |= mask[i];
+#[inline(always)]
+fn apply(occ: &mut [u64], p: &Placement) {
+    for &(wi, m) in p.chunks.iter() {
+        occ[wi as usize] |= m;
     }
 }
 
-fn unapply(occ: &mut [u64], mask: &[u64]) {
-    for i in 0..occ.len() {
-        occ[i] ^= mask[i];
+#[inline(always)]
+fn unapply(occ: &mut [u64], p: &Placement) {
+    for &(wi, m) in p.chunks.iter() {
+        occ[wi as usize] ^= m;
     }
 }
 
@@ -235,10 +303,7 @@ fn parse_input(input: &str) -> (Vec<Vec<(i32, i32)>>, Vec<Region>) {
             i += 1;
         }
     }
-    let shape_grids: Vec<Vec<String>> = shapes_map
-        .into_iter()
-        .map(|opt| opt.expect("missing shape index"))
-        .collect();
+    let shape_grids: Vec<Vec<String>> = shapes_map.into_iter().map(|opt| opt.unwrap()).collect();
     let shapes_raw: Vec<Vec<(i32, i32)>> = shape_grids
         .into_iter()
         .map(|grid| {
@@ -281,8 +346,12 @@ fn parse_input(input: &str) -> (Vec<Vec<(i32, i32)>>, Vec<Region>) {
 }
 
 fn is_region_line(s: &str) -> bool {
-    let Some((wh, _rest)) = s.split_once(':') else { return false; };
-    let Some((w, h)) = wh.split_once('x') else { return false; };
+    let Some((wh, _rest)) = s.split_once(':') else {
+        return false;
+    };
+    let Some((w, h)) = wh.split_once('x') else {
+        return false;
+    };
     !w.is_empty()
         && !h.is_empty()
         && w.chars().all(|c| c.is_ascii_digit())
@@ -290,14 +359,14 @@ fn is_region_line(s: &str) -> bool {
 }
 
 fn gen_variants(base: &[(i32, i32)]) -> Vec<Variant> {
-    let mut seen: HashSet<Vec<(u8, u8)>> = HashSet::new();
+    let mut seen: AHashSet<Vec<(u8, u8)>> = AHashSet::new();
     let mut out: Vec<Variant> = Vec::new();
     for flip in [false, true] {
         for rot in 0..4 {
             let mut coords: Vec<(i32, i32)> = Vec::with_capacity(base.len());
             for &(x0, y0) in base {
                 let mut x = x0;
-                let mut y = y0;
+                let y = y0;
                 if flip {
                     x = -x;
                 }

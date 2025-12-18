@@ -1,6 +1,6 @@
 use crate::puzzle::Puzzle;
+use rayon::prelude::*;
 use std::collections::VecDeque;
-use z3::{Optimize, SatResult, ast::Int};
 
 pub struct Day {
     machines: Vec<Machine>,
@@ -24,19 +24,18 @@ impl Puzzle for Day {
             .to_string()
     }
 
-    /// For each machine, compute the minimum total number of button presses
-    /// needed to satisfy the per-light joltage requirements, then sum these
-    /// minima across all machines.
+    /// For each machine, compute the minimum total number of button presses needed to satisfy the
+    /// per-light joltage requirements, then sum these minima across all machines.
     ///
-    /// This formulates a nonnegative-integer optimization problem and solves
-    /// it using Z3 Optimize.
+    /// We form this problem as a system of linear equations and solve for non-negative integer
+    /// solutions that minimize the sum of variables by solving for the Reduced Row Echelon Form.
     ///
     /// Time complexity: Constraint construction is O(N * B * L^2) where N is the number of
     /// machines, B is the number of buttons per machine, and L is the number of lights per machine.
     /// Auxiliary space complexity: O(B * L)
     fn solve_part_2(&self) -> String {
         self.machines
-            .iter()
+            .par_iter()
             .map(|m| m.min_joltage_presses().unwrap())
             .sum::<u64>()
             .to_string()
@@ -116,34 +115,140 @@ impl Machine {
     }
 
     fn min_joltage_presses(&self) -> Option<u64> {
-        let opt = Optimize::new();
-        let mut press_counts = Vec::new();
-        let zero = Int::from_i64(0);
-        let mut total_presses_expr = Int::from_i64(0);
-        for i in 0..self.button_wires.len() {
-            let x_i = Int::new_const(format!("x_{}", i));
-            opt.assert(&x_i.ge(&zero));
-            total_presses_expr = &total_presses_expr + &x_i;
-            press_counts.push(x_i);
+        let num_vars = self.button_wires.len();
+        let num_eqs = self.num_lights;
+        let mut matrix = vec![vec![0.0; num_vars + 1]; num_eqs];
+        for (btn_idx, wires) in self.button_wires.iter().enumerate() {
+            for &light_idx in wires {
+                matrix[light_idx][btn_idx] = 1.0;
+            }
         }
-        for light_idx in 0..self.num_lights {
-            let mut light_sum = Int::from_i64(0);
-            for (btn_idx, wires) in self.button_wires.iter().enumerate() {
-                if wires.contains(&light_idx) {
-                    light_sum = &light_sum + &press_counts[btn_idx];
+        for (light_idx, &goal) in self.joltage_goal.iter().enumerate() {
+            matrix[light_idx][num_vars] = goal as f64;
+        }
+        let mut pivot_row = 0;
+        let mut pivot_cols = Vec::new();
+        for col in 0..num_vars {
+            if pivot_row >= num_eqs {
+                break;
+            }
+            let mut selection = pivot_row;
+            while selection < num_eqs && matrix[selection][col].abs() < 1e-9 {
+                selection += 1;
+            }
+            if selection < num_eqs {
+                matrix.swap(pivot_row, selection);
+                let pivot_val = matrix[pivot_row][col];
+                for j in col..=num_vars {
+                    matrix[pivot_row][j] /= pivot_val;
+                }
+                for i in 0..num_eqs {
+                    if i != pivot_row {
+                        let factor = matrix[i][col];
+                        if factor.abs() > 1e-9 {
+                            for j in col..=num_vars {
+                                matrix[i][j] -= factor * matrix[pivot_row][j];
+                            }
+                        }
+                    }
+                }
+                pivot_cols.push(col);
+                pivot_row += 1;
+            }
+        }
+        for i in pivot_row..num_eqs {
+            if matrix[i][num_vars].abs() > 1e-4 {
+                return None;
+            }
+        }
+        let mut free_vars = Vec::new();
+        for col in 0..num_vars {
+            if !pivot_cols.contains(&col) {
+                free_vars.push(col);
+            }
+        }
+        let mut best_total = None;
+        let mut bounds = vec![u64::MAX; num_vars];
+        for (btn_idx, wires) in self.button_wires.iter().enumerate() {
+            for &light in wires {
+                let limit = self.joltage_goal[light] as u64;
+                if limit < bounds[btn_idx] {
+                    bounds[btn_idx] = limit;
                 }
             }
-            let goal_val = self.joltage_goal[light_idx] as i64;
-            opt.assert(&light_sum.eq(Int::from_i64(goal_val)));
         }
-        opt.minimize(&total_presses_expr);
-        match opt.check(&[]) {
-            SatResult::Sat => {
-                let model = opt.get_model().unwrap();
-                let result = model.eval(&total_presses_expr, true).unwrap();
-                result.as_u64()
+        let free_var_bounds: Vec<u64> = free_vars.iter().map(|&idx| bounds[idx]).collect();
+        self.recursive_search(
+            0,
+            &free_vars,
+            &free_var_bounds,
+            &mut vec![0; num_vars],
+            &matrix,
+            &pivot_cols,
+            &mut best_total
+        );
+        best_total
+    }
+
+    fn recursive_search(
+        &self,
+        free_idx: usize,
+        free_vars: &[usize],
+        bounds: &[u64],
+        current_sol: &mut Vec<u64>,
+        matrix: &Vec<Vec<f64>>,
+        pivot_cols: &[usize],
+        best_total: &mut Option<u64>
+    ) {
+        let current_sum: u64 = current_sol.iter().sum();
+        if let Some(best) = *best_total {
+            if current_sum >= best {
+                return;
             }
-            _ => None,
+        }
+        if free_idx == free_vars.len() {
+            let num_vars = current_sol.len();
+            let mut valid = true;
+            let mut derived_sol = current_sol.clone();
+            for (row_idx, &p_col) in pivot_cols.iter().enumerate() {
+                let mut val = matrix[row_idx][num_vars];
+                for &f_col in free_vars {
+                    val -= matrix[row_idx][f_col] * (current_sol[f_col] as f64);
+                }
+                if val < -1e-4 {
+                    valid = false;
+                    break;
+                }
+                let rounded = val.round();
+                if (val - rounded).abs() > 1e-4 {
+                    valid = false;
+                    break;
+                }
+                derived_sol[p_col] = rounded as u64;
+            }
+            if valid {
+                let total: u64 = derived_sol.iter().sum();
+                match best_total {
+                    Some(b) => *b = (*b).min(total),
+                    None => *best_total = Some(total),
+                }
+            }
+            return;
+        }
+        let f_var_idx = free_vars[free_idx];
+        let limit = bounds[free_idx];
+        for val in 0..=limit {
+            current_sol[f_var_idx] = val;
+            self.recursive_search(
+                free_idx + 1, 
+                free_vars, 
+                bounds, 
+                current_sol, 
+                matrix, 
+                pivot_cols, 
+                best_total
+            );
+            current_sol[f_var_idx] = 0;
         }
     }
 }

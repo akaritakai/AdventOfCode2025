@@ -558,7 +558,7 @@ mod tests {
             4x4: 0 0 0 0 2 0\n\
             12x5: 1 0 1 0 2 2\n\
             12x5: 1 0 1 0 3 2";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "2");
     }
 

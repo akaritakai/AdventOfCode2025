@@ -130,7 +130,7 @@ mod tests {
             ...............\n\
             .^.^.^.^.^...^.\n\
             ...............";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "21");
     }
 

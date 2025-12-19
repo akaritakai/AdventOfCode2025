@@ -84,7 +84,7 @@ mod tests {
             11\n\
             17\n\
             32";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "3");
     }
 

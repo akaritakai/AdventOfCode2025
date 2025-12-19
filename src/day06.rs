@@ -133,14 +133,14 @@ mod tests {
 
     #[test]
     fn test_part_1_example_1() {
-        let input = vec![
+        let input = [
             "123 328  51 64 ",
             " 45 64  387 23 ",
             "  6 98  215 314",
             "*   +   *   +  ",
         ]
         .join("\n");
-        let puzzle = Day::create(&*input);
+        let puzzle = Day::create(&input);
         assert_eq!(puzzle.solve_part_1(), "4277556");
     }
 
@@ -153,14 +153,14 @@ mod tests {
 
     #[test]
     fn test_part_2_example_1() {
-        let input = vec![
+        let input = [
             "123 328  51 64 ",
             " 45 64  387 23 ",
             "  6 98  215 314",
             "*   +   *   +  ",
         ]
         .join("\n");
-        let puzzle = Day::create(&*input);
+        let puzzle = Day::create(&input);
         assert_eq!(puzzle.solve_part_2(), "3263827");
     }
 

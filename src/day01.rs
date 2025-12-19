@@ -78,7 +78,7 @@ mod tests {
             L99\n\
             R14\n\
             L82";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "3");
     }
 

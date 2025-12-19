@@ -210,7 +210,7 @@ mod tests {
             565653-565659,\
             824824821-824824827,\
             2121212118-2121212124";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "1227775554");
     }
 

@@ -70,7 +70,7 @@ mod tests {
             811111111111119\n\
             234234234234278\n\
             818181911112111";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "357");
     }
 

@@ -204,7 +204,7 @@ mod tests {
             2,5\n\
             2,3\n\
             7,3";
-        let puzzle = Day::create(&input);
+        let puzzle = Day::create(input);
         assert_eq!(puzzle.solve_part_1(), "50");
     }
 

@@ -1,7 +1,8 @@
-name: Build & Test
+name: Build, Lint, and Test
 on: [push]
 jobs:
-  build:
+  lint:
+    name: cargo fmt + clippy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -9,17 +10,78 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.REPO_TOKEN }}
-      - name: Build main Docker image
-        run: docker build -t aoc2025 .
-      - name: Build test Docker image
-        run: docker build -t aoc2025-test -f Dockerfile.test .
-      - name: Run tests in Docker container
-        run: docker run --name aoc2025-test-run aoc2025-test
-      - name: Copy test results from Docker container
-        run: docker cp aoc2025-test-run:/opt/aoc/lcov.info .
+      - name: Set up Rust (stable + rustfmt + clippy)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+      - name: cargo fmt (check)
+        run: cargo fmt --all --check
+      - name: cargo clippy (deny warnings)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+  test:
+    name: cargo test + coverage (lcov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Set up Rust (stable + llvm-tools-preview)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install grcov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: grcov
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run tests with coverage instrumentation
+        env:
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-C instrument-coverage"
+          LLVM_PROFILE_FILE: "coverage/%p-%m.profraw"
+        run: |
+          mkdir -p coverage
+          cargo test --release
+      - name: Generate lcov.info
+        run: |
+          grcov . \
+            --binary-path ./target/release/ \
+            -s . \
+            -t lcov \
+            --branch \
+            --ignore-not-existing \
+            -o lcov.info
       - name: Upload test results to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: ./lcov.info
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+  docker:
+    name: Smoke-test Dockerfile build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.REPO_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build main Docker image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          tags: aoc2025:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-check binary exists in image
+        run: |
+          docker run --rm --entrypoint bash aoc2025:ci -lc 'test -x target/release/aoc2025'

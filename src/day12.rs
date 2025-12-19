@@ -17,33 +17,61 @@ impl Puzzle for Day {
     /// shapes.
     /// Auxiliary space complexity: O(2^B) where B is the area of the region.
     fn solve_part_1(&self) -> String {
-        let mut used_shape = vec![false; self.shapes.len()];
-        let mut sizes: AHashSet<(usize, usize)> = AHashSet::new();
-        for r in &self.regions {
-            sizes.insert((r.w, r.h));
-            for (i, &c) in r.counts.iter().enumerate() {
-                if c != 0 {
-                    used_shape[i] = true;
-                }
-            }
-        }
         type PLKey = (usize, usize, usize);
-        let mut placement_map: AHashMap<PLKey, Arc<PlacementList>> = AHashMap::new();
-        for (w, h) in sizes.into_iter() {
-            for (i, shape) in self.shapes.iter().enumerate() {
-                if !used_shape[i] {
-                    continue;
+        let shapes = &self.shapes;
+        let mut trivial_yes = 0usize;
+        let mut hard_regions: Vec<&Region> = Vec::new();
+        let mut used_shape = vec![false; shapes.len()];
+        let mut hard_sizes: AHashSet<(usize, usize)> = AHashSet::new();
+        for r in &self.regions {
+            match triage_region(r, shapes) {
+                RegionTriage::TriviallyFits => {
+                    trivial_yes += 1;
                 }
-                placement_map.insert((w, h, i), Arc::new(PlacementList::generate(w, h, shape)));
+                RegionTriage::TriviallyImpossible => {}
+                RegionTriage::NeedsSearch => {
+                    hard_regions.push(r);
+                    hard_sizes.insert((r.w, r.h));
+                    for (i, &c) in r.counts.iter().enumerate() {
+                        if c != 0 {
+                            used_shape[i] = true;
+                        }
+                    }
+                }
             }
         }
-        let shapes = &self.shapes;
+        if hard_regions.is_empty() {
+            return trivial_yes.to_string();
+        }
+        let mut keys: Vec<PLKey> =
+            Vec::with_capacity(hard_sizes.len() * used_shape.iter().filter(|&&u| u).count());
+        for &(w, h) in hard_sizes.iter() {
+            for (i, &u) in used_shape.iter().enumerate() {
+                if u {
+                    keys.push((w, h, i));
+                }
+            }
+        }
+        let generated: Vec<(PLKey, Arc<PlacementList>)> = keys
+            .into_par_iter()
+            .map(|(w, h, i)| {
+                (
+                    (w, h, i),
+                    Arc::new(PlacementList::generate(w, h, &shapes[i])),
+                )
+            })
+            .collect();
+        let mut placement_map: AHashMap<PLKey, Arc<PlacementList>> =
+            AHashMap::with_capacity(generated.len());
+        for (k, v) in generated {
+            placement_map.insert(k, v);
+        }
         let pm = &placement_map;
-        self.regions
+        let hard_yes = hard_regions
             .par_iter()
             .filter(|r| region_can_fit(r, shapes, pm))
-            .count()
-            .to_string()
+            .count();
+        (trivial_yes + hard_yes).to_string()
     }
 
     fn solve_part_2(&self) -> String {
@@ -66,6 +94,12 @@ impl Day {
     }
 }
 
+enum RegionTriage {
+    TriviallyFits,
+    TriviallyImpossible,
+    NeedsSearch,
+}
+
 #[derive(Clone)]
 struct Region {
     w: usize,
@@ -77,6 +111,83 @@ struct Region {
 struct Shape {
     area: usize,
     variants: Vec<Variant>,
+}
+
+impl Shape {
+    #[inline]
+    fn fits_in(&self, rw: usize, rh: usize) -> bool {
+        self.variants.iter().any(|v| v.w <= rw && v.h <= rh)
+    }
+
+    #[inline]
+    fn min_height_that_fits(&self, rw: usize, rh: usize) -> Option<usize> {
+        self.variants
+            .iter()
+            .filter(|v| v.w <= rw && v.h <= rh)
+            .map(|v| v.h)
+            .min()
+    }
+
+    #[inline]
+    fn min_width_that_fits(&self, rw: usize, rh: usize) -> Option<usize> {
+        self.variants
+            .iter()
+            .filter(|v| v.w <= rw && v.h <= rh)
+            .map(|v| v.w)
+            .min()
+    }
+}
+
+fn triage_region(region: &Region, shapes: &[Shape]) -> RegionTriage {
+    if region.counts.len() != shapes.len() {
+        return RegionTriage::TriviallyImpossible;
+    }
+    let board_cells = region.w * region.h;
+    let mut needed_cells: usize = 0;
+    let mut pieces_left: usize = 0;
+    for (i, &c) in region.counts.iter().enumerate() {
+        if c == 0 {
+            continue;
+        }
+        pieces_left += c as usize;
+        needed_cells += (c as usize) * shapes[i].area;
+        if needed_cells > board_cells {
+            return RegionTriage::TriviallyImpossible;
+        }
+    }
+    if pieces_left == 0 {
+        return RegionTriage::TriviallyFits;
+    }
+    for (i, &c) in region.counts.iter().enumerate() {
+        if c == 0 {
+            continue;
+        }
+        if !shapes[i].fits_in(region.w, region.h) {
+            return RegionTriage::TriviallyImpossible;
+        }
+    }
+    if pieces_left == 1 {
+        return RegionTriage::TriviallyFits;
+    }
+    let mut sum_min_h: u128 = 0;
+    let mut sum_min_w: u128 = 0;
+    for (i, &c8) in region.counts.iter().enumerate() {
+        if c8 == 0 {
+            continue;
+        }
+        let c = c8 as u128;
+        let min_h = shapes[i].min_height_that_fits(region.w, region.h).unwrap() as u128;
+        let min_w = shapes[i].min_width_that_fits(region.w, region.h).unwrap() as u128;
+        sum_min_h += c * min_h;
+        sum_min_w += c * min_w;
+        if sum_min_h > region.h as u128 && sum_min_w > region.w as u128 {
+            break;
+        }
+    }
+    if sum_min_h <= region.h as u128 || sum_min_w <= region.w as u128 {
+        return RegionTriage::TriviallyFits;
+    }
+    RegionTriage::NeedsSearch
 }
 
 #[derive(Clone)]

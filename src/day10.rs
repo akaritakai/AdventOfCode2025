@@ -50,6 +50,13 @@ struct Machine {
     joltage_goal: Vec<usize>,
 }
 
+struct SearchContext<'a> {
+    free_vars: &'a [usize],
+    bounds: &'a [u64],
+    matrix: &'a Vec<Vec<f64>>,
+    pivot_cols: &'a [usize],
+}
+
 impl Machine {
     fn from_line(line: &str) -> Self {
         let (rest, joltage_part) = line.split_once('{').unwrap();
@@ -139,15 +146,20 @@ impl Machine {
             if selection < num_eqs {
                 matrix.swap(pivot_row, selection);
                 let pivot_val = matrix[pivot_row][col];
-                for j in col..=num_vars {
-                    matrix[pivot_row][j] /= pivot_val;
+                for val in matrix[pivot_row].iter_mut().skip(col) {
+                    *val /= pivot_val;
                 }
-                for i in 0..num_eqs {
+                let pivot_row_vals = matrix[pivot_row].clone();
+                for (i, row) in matrix.iter_mut().enumerate() {
                     if i != pivot_row {
-                        let factor = matrix[i][col];
+                        let factor = row[col];
                         if factor.abs() > 1e-9 {
-                            for j in col..=num_vars {
-                                matrix[i][j] -= factor * matrix[pivot_row][j];
+                            for (target, &source) in row
+                                .iter_mut()
+                                .skip(col)
+                                .zip(pivot_row_vals.iter().skip(col))
+                            {
+                                *target -= factor * source;
                             }
                         }
                     }
@@ -156,8 +168,8 @@ impl Machine {
                 pivot_row += 1;
             }
         }
-        for i in pivot_row..num_eqs {
-            if matrix[i][num_vars].abs() > 1e-4 {
+        for row in matrix.iter().skip(pivot_row) {
+            if row[num_vars].abs() > 1e-4 {
                 return None;
             }
         }
@@ -178,42 +190,35 @@ impl Machine {
             }
         }
         let free_var_bounds: Vec<u64> = free_vars.iter().map(|&idx| bounds[idx]).collect();
-        self.recursive_search(
-            0,
-            &free_vars,
-            &free_var_bounds,
-            &mut vec![0; num_vars],
-            &matrix,
-            &pivot_cols,
-            &mut best_total
-        );
+        let ctx = SearchContext {
+            free_vars: &free_vars,
+            bounds: &free_var_bounds,
+            matrix: &matrix,
+            pivot_cols: &pivot_cols,
+        };
+        self.recursive_search(0, &ctx, &mut vec![0; num_vars], &mut best_total);
         best_total
     }
 
     fn recursive_search(
         &self,
         free_idx: usize,
-        free_vars: &[usize],
-        bounds: &[u64],
+        ctx: &SearchContext,
         current_sol: &mut Vec<u64>,
-        matrix: &Vec<Vec<f64>>,
-        pivot_cols: &[usize],
-        best_total: &mut Option<u64>
+        best_total: &mut Option<u64>,
     ) {
         let current_sum: u64 = current_sol.iter().sum();
-        if let Some(best) = *best_total {
-            if current_sum >= best {
-                return;
-            }
+        if best_total.is_some_and(|best| current_sum >= best) {
+            return;
         }
-        if free_idx == free_vars.len() {
+        if free_idx == ctx.free_vars.len() {
             let num_vars = current_sol.len();
             let mut valid = true;
             let mut derived_sol = current_sol.clone();
-            for (row_idx, &p_col) in pivot_cols.iter().enumerate() {
-                let mut val = matrix[row_idx][num_vars];
-                for &f_col in free_vars {
-                    val -= matrix[row_idx][f_col] * (current_sol[f_col] as f64);
+            for (row_idx, &p_col) in ctx.pivot_cols.iter().enumerate() {
+                let mut val = ctx.matrix[row_idx][num_vars];
+                for &f_col in ctx.free_vars {
+                    val -= ctx.matrix[row_idx][f_col] * (current_sol[f_col] as f64);
                 }
                 if val < -1e-4 {
                     valid = false;
@@ -235,19 +240,11 @@ impl Machine {
             }
             return;
         }
-        let f_var_idx = free_vars[free_idx];
-        let limit = bounds[free_idx];
+        let f_var_idx = ctx.free_vars[free_idx];
+        let limit = ctx.bounds[free_idx];
         for val in 0..=limit {
             current_sol[f_var_idx] = val;
-            self.recursive_search(
-                free_idx + 1, 
-                free_vars, 
-                bounds, 
-                current_sol, 
-                matrix, 
-                pivot_cols, 
-                best_total
-            );
+            self.recursive_search(free_idx + 1, ctx, current_sol, best_total);
             current_sol[f_var_idx] = 0;
         }
     }
